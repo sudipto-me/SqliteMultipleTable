@@ -5,7 +5,16 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+
 import android.util.Log;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
 
 /**
  * Created by Android on 9/7/2017.
@@ -15,7 +24,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     //Logcat tag
     private static final String LOG = "DATABASEHELPER";
     //database version
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     //Database name
     private static final String DATABASE_NAME = "contactsManager";
@@ -42,22 +51,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     //Table Create Statements
     //Todo Table Create Statements
-    private static final String CREATE_TABLE_TODO = "CREATE TABLE " +
+    private static final String CREATE_TABLE_TODO = " CREATE TABLE " +
             Table_Todo + "(" + Key_id + " INTEGER PRIMARY KEY, " + Key_Todo +
             "TEXT," + Key_Status + " INTEGER," + Key_Created_at
             + " DATETIME " + ")";
 
     // Tag table create statement
-    private static final String CREATE_TABLE_TAG = "CREATE TABLE " + Table_Tags
+    private static final String CREATE_TABLE_TAG = " CREATE TABLE " + Table_Tags
             + "(" + Key_id + " INTEGER PRIMARY KEY," + Key_Tag_Name + " TEXT," +
             Key_Created_at + " DATETIME " + ")";
 
 
     // todo_tag table create statement
-    private static final String CREATE_TABLE_TODO_TAG = "CRETAE TABLE " +
+    private static final String CREATE_TABLE_TODO_TAG = " CREATE TABLE " +
             Table_todo_tags + "(" + Key_id + " INTEGER PRIMARY KEY," + KEY_TODO_ID +
-            "INTEGER, " + KEY_TAGS_ID + " INTEGER,"
-            + Key_Created_at + " DATEtIME " + ")";
+            " INTEGER, " + KEY_TAGS_ID + " INTEGER,"
+            + Key_Created_at + " DATETIME " + ")";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -95,7 +104,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         //insert row
         long todo_id = db.insert(Table_Todo, null, contentValues);
 
-        //assigning tags to todo
+     
         for (long tag_id : tag_ids) {
             createTodoTag(todo_id, tag_id);
         }
@@ -126,6 +135,210 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return td;
 
     }
-    
+    //Fetching all todo
+    public List<Todo> getallTodos(){
+        List<Todo> todos = new ArrayList<Todo>();
+        String SelectQuery = "SELECT * FROM "+ Table_Todo;
+        Log.d(LOG,SelectQuery);
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery(SelectQuery,null);
+
+        //looping through all list and adding them to the list
+        if (c.moveToFirst()){
+            do{
+                Todo todo = new Todo();
+                todo.setId(c.getInt(c.getColumnIndex(Key_id)));
+                todo.setNote(c.getString(c.getColumnIndex(Key_Todo)));
+                todo.setCreated_at(c.getString(c.getColumnIndex(Key_Created_at)));
+
+                //adding to todo list
+                todos.add(todo);
+
+            }while (c.moveToNext());
+        }
+
+        return todos;
+
+    }
+
+    //getting all todos under a single tag
+    public List<Todo>getAllTodosByTag(String tag_name){
+
+        List<Todo>todos = new ArrayList<Todo>();
+
+
+        String selectQuery = " SELECT * FROM "+ Table_Todo +
+                " td, "+ Table_Tags + " tg, "+ Table_todo_tags + " tt WHERE tg. "+
+                Key_Tag_Name + " = '"+ tag_name + "'" + " AND tg. "+ Key_id+
+                " = " + " tt." + KEY_TAGS_ID + " AND td. "+ Key_id+ " = "+
+                 " tt." +KEY_TODO_ID;
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery(selectQuery,null);
+
+        if (c.moveToFirst()){
+            do{
+                Todo todo = new Todo();
+                todo.setId(c.getInt(c.getColumnIndex(Key_id)));
+                todo.setNote(c.getString(c.getColumnIndex(Key_Todo)));
+                todo.setCreated_at(c.getString(c.getColumnIndex(Key_Created_at)));
+
+                //adding to todo list
+                todos.add(todo);
+
+            }while (c.moveToNext());
+        }
+
+
+        return todos;
+    }
+
+    //get todocount
+    public int getTodoCount(){
+        String countQuery = " SELECT * FROM "+ Table_Todo;
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(countQuery,null);
+
+        int count = cursor.getCount();
+        cursor.close();
+
+        //return count
+        return count;
+    }
+
+    //updating a todo
+    public int updateTodo(Todo todo){
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        ContentValues contentValues = new ContentValues();
+
+        contentValues.put(Key_Todo,todo.getNote());
+        contentValues.put(Key_Status,todo.getStatus());
+
+        //updating a row
+        return db.update(Table_Todo, contentValues,Key_id+ " = ? ",
+                new String[]{String.valueOf(todo.getId())});
+    }
+
+    //deleting a todo
+    public void deleteTodo(long todo_id){
+
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete(Table_Todo, Key_id+" = ?",
+                new String[]{String.valueOf(todo_id)});
+
+    }
+
+    //creating a tag
+    public long createTag(Tags tag){
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(Key_Tag_Name,tag.getTag_name());
+        contentValues.put(Key_Created_at,getDateTime());
+
+        //insert row id
+        long tag_id = db.insert(Table_Tags,null,contentValues);
+        return tag_id;
+    }
+
+    //getting all tags
+    public List<Tags>getAllTags(){
+        List<Tags>tags = new ArrayList<Tags>();
+        String selectQuery = " SELECT * FROM "+ Table_Tags;
+        Log.d(LOG,selectQuery);
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery(selectQuery,null);
+
+        //looping through all rows and adding to list
+        if (c.moveToFirst()){
+            do{
+                Tags t = new Tags();
+                t.setId(c.getInt(c.getColumnIndex(Key_id)));
+                t.setTag_name(c.getString(c.getColumnIndex(Key_Tag_Name)));
+
+                tags.add(t);
+            }while(c.moveToNext());
+        }
+
+
+        return tags;
+    }
+
+    //updating tags
+    public int updateTag(Tags tags){
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(Key_Tag_Name, tags.getTag_name());
+
+        //updating tag
+        return db.update(Table_Tags,contentValues,Key_id+ " = ? ",
+                new String[]{String.valueOf(tags.getId())});
+    }
+
+    //deleting tags and todos under the tag name
+    public void deleteTag(Tags tag,boolean should_delete_all_tag_todos){
+        SQLiteDatabase db = this.getWritableDatabase();
+        // before deleting tag
+        // check if todos under this tag should also be deleted
+        if (should_delete_all_tag_todos){
+            //get all todos under this tag
+            List<Todo> allTagTodos = new ArrayList<Todo>();
+
+            //delete all todos
+            for (Todo todo:allTagTodos){
+                //delete todos
+                deleteTodo(todo.getId());
+            }
+        }
+        db.delete(Table_Tags,Key_id+ " = ?",
+                new String[]{String.valueOf(tag.getId())});
+    }
+
+    //Assigning a tag to todo
+    //create todotag
+    public Long createTodoTag(long todo_id,long tag_id){
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(KEY_TODO_ID,todo_id);
+        contentValues.put(KEY_TAGS_ID,tag_id);
+        contentValues.put(Key_Created_at,getDateTime());
+
+        long id = db.insert(Table_todo_tags,null,contentValues);
+
+        return id;
+    }
+
+    //update todotag
+    public int updateNoteTag(long id,long tag_id){
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(KEY_TAGS_ID,tag_id);
+
+        //updating row
+        return db.update(Table_Todo,contentValues,Key_id+" = ?",
+                new String[]{String.valueOf(id)});
+    }
+
+    public void closeDB() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        if (db != null && db.isOpen())
+            db.close();
+    }
+
+    /**
+     * get datetime
+     * */
+    private String getDateTime() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat(
+                "yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        Date date = new Date();
+        return dateFormat.format(date);
+    }
+
 
 }
